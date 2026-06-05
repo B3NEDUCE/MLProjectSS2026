@@ -37,3 +37,6 @@ models/
 data/
 *.csv
 *.zip
+
+# Ordnerstruktur behalten
+!models/.gitkeep
