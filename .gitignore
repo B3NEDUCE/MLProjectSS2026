@@ -21,6 +21,9 @@ ENV/
 *.swp
 *.swo
 
+# Claude Code (lokal, nicht teilen)
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db
