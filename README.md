@@ -140,7 +140,7 @@ this is already a WSL (bash) shell. Run everything from the project root
     source .venv/bin/activate
 
     # 4) install the required packages
-    pip install numpy pandas scikit-learn==1.6.1 joblib matplotlib jupyter
+    pip install numpy==1.26.4 pandas scikit-learn==1.6.1 joblib matplotlib jupyter
 
 **Train the models** (in the same terminal):
 
