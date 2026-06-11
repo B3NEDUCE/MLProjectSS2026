@@ -1,3 +1,13 @@
+"""Method 2: Ridge Regression (Powerpredict).
+
+Everything lives in one sklearn pipeline:  scaling + encoding + Ridge.
+This way the test notebook only needs:  model = load(); model.predict(raw_data).
+
+Runnable directly as a training script:
+    python src/method_2/model.py
+-> tunes alpha via cross-validation and saves the best model to models/linreg_model.joblib
+"""
+
 import os
 import sys
 import numpy as np
