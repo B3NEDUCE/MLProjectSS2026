@@ -18,8 +18,10 @@ TARGET = "power_consumption"
 
 # Default path to the file: <repo>/data/powerpredict.csv (relative to this file,
 # so it does not matter which folder the script/notebook is started from).
-DEFAULT_DATA_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "data", "powerpredict.csv"
+_HUB_DATA = "/data/mlproject22/powerpredict.csv"
+DEFAULT_DATA_PATH = (
+    _HUB_DATA if os.path.exists(_HUB_DATA)
+    else os.path.join(os.path.dirname(__file__), "..", "data", "powerpredict.csv")
 )
 
 
