@@ -47,8 +47,11 @@ def tune(X, y, encode_categoricals=True, cv=5):
         "knn__n_neighbors": [3, 5, 11, 25, 51],
         "knn__weights": ["uniform", "distance"],
     }
+    # n_jobs=1: k-NN stores all training data, so each parallel worker would
+    # hold a full copy of the dataset + model. On JupyterHub's limited RAM that
+    # gets the workers killed (TerminatedWorkerError/SIGKILL). Run sequentially.
     search = GridSearchCV(
-        model, grid, scoring="neg_mean_absolute_error", cv=cv, n_jobs=-1
+        model, grid, scoring="neg_mean_absolute_error", cv=cv, n_jobs=1
     )
     search.fit(X, y)
     print(f"Best settings: {search.best_params_}")
@@ -70,7 +73,12 @@ def load(path=MODEL_PATH):
 if __name__ == "__main__":
     X, y = load_data()
     print(f"Data loaded: X={X.shape}, y={y.shape}")
-    best, _ = tune(X, y)
+    # encode_categoricals=False drops the weather-text one-hot columns and
+    # cv=3 reduces the number of fits. k-NN keeps the whole dataset in memory
+    # and CV makes several copies; one-hot expansion + 5-fold CV exhausts the
+    # hub's RAM and the process gets OOM-killed ("Killed"). Numeric features
+    # alone stay within memory and still beat the dummy baseline comfortably.
+    best, _ = tune(X, y, encode_categoricals=False, cv=3)
     save(best)
     size_mb = os.path.getsize(MODEL_PATH) / 1e6
     print(f"Model saved: {MODEL_PATH} ({size_mb:.1f} MB)")
