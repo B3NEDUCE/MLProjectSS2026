@@ -16,13 +16,27 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 # Column we want to predict
 TARGET = "power_consumption"
 
-# Default path to the file: <repo>/data/powerpredict.csv (relative to this file,
-# so it does not matter which folder the script/notebook is started from).
-_HUB_DATA = "/data/mlproject22/powerpredict.csv"
-DEFAULT_DATA_PATH = (
-    _HUB_DATA if os.path.exists(_HUB_DATA)
-    else os.path.join(os.path.dirname(__file__), "..", "data", "powerpredict.csv")
-)
+# Resolve the dataset path automatically. On JupyterHub the data lives in
+# /data/mlproject22 and is only provided as a .zip (pandas.read_csv reads it
+# transparently). Locally it sits in <repo>/data. We check both the zipped and
+# unzipped names so it works regardless of where the script/notebook is started.
+_CANDIDATE_PATHS = [
+    "/data/mlproject22/powerpredict.csv",
+    "/data/mlproject22/powerpredict.csv.zip",
+    os.path.join(os.path.dirname(__file__), "..", "data", "powerpredict.csv"),
+    os.path.join(os.path.dirname(__file__), "..", "data", "powerpredict.csv.zip"),
+]
+
+
+def _resolve_data_path():
+    for p in _CANDIDATE_PATHS:
+        if os.path.exists(p):
+            return p
+    # Fall back to the hub zip (best guess) if nothing was found.
+    return _CANDIDATE_PATHS[1]
+
+
+DEFAULT_DATA_PATH = _resolve_data_path()
 
 
 def load_data(path=DEFAULT_DATA_PATH):
