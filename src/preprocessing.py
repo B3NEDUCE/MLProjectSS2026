@@ -44,6 +44,12 @@ def _resolve_data_path():
     as a best-effort default (the later read will then raise a clear error).
     ML context: not an ML step itself, just environment plumbing so the same
     pipeline trains identically on the hub and locally (reproducibility).
+
+    Example:
+        Input:  (no arguments)
+        Output: a single path string pointing at the first dataset that exists,
+                e.g. ".../MLProjectSS2026/data/powerpredict.csv" when running
+                locally (or "/data/mlproject22/powerpredict.csv.zip" on the hub).
     """
     for p in _CANDIDATE_PATHS:   # go through the candidates in priority order
         if os.path.exists(p):    # check whether this file is actually present
@@ -66,6 +72,18 @@ def load_data(path=DEFAULT_DATA_PATH):
     and y is a Series with the target values; both have the same number of rows.
     ML context: produces the (X, y) pair that all of supervised learning is built
     on — the model learns the mapping X -> y.
+
+    Example (using data/powerpredict.csv, 39997 rows x 66 columns):
+        Input:  path = ".../data/powerpredict.csv"
+        Output: X, y = load_data(path)
+                # X -> DataFrame, shape (39997, 65), all 65 weather columns:
+                #            Bedrock_t  Bedrock_humidity ... Bedrock_weather_main ...
+                #   row 0     270.475                77 ...               "clear" ...
+                #     ...
+                # y -> Series, shape (39997,), the target power values:
+                #   row 0    25385.0
+                #     ...
+                #   Name: power_consumption
     """
     df = pd.read_csv(path)            # read the whole table into a DataFrame
     X = df.drop(columns=[TARGET])     # features = every column EXCEPT the target
@@ -84,6 +102,15 @@ def split_columns(X):
     ML context: different feature types need different preprocessing — numbers get
     scaled, text gets encoded. This split tells the ColumnTransformer which
     transform to apply where.
+
+    Example (X = the 65 feature columns from powerpredict.csv):
+        Input:  X -> DataFrame with columns like "Bedrock_t" (float),
+                "Bedrock_humidity" (int), "Bedrock_weather_main" (text), ...
+        Output: numeric, categorical = split_columns(X)
+                # numeric     -> 55 names, the number columns:
+                #   ["Bedrock_t", "Bedrock_t_low", "Bedrock_humidity", ...]
+                # categorical -> 10 names, the text columns (2 per city):
+                #   ["Bedrock_weather_main", "Bedrock_weather_description", ...]
     """
     numeric = X.select_dtypes(exclude="object").columns.tolist()      # everything not text
     categorical = X.select_dtypes(include="object").columns.tolist()  # text columns only
@@ -108,6 +135,21 @@ def build_preprocessor(X, encode_categoricals=True):
         because k-NN/Ridge can only do arithmetic on numbers.
       * handle_unknown="ignore" prevents a crash if the hidden test set contains a
         weather category never seen during training (it is encoded as all-zeros).
+
+    Example (X = the 65 feature columns from powerpredict.csv):
+        Input:  X + encode_categoricals=True
+        Output: an *unfitted* ColumnTransformer. After .fit(X) it turns one raw
+                row into a purely numeric vector:
+                # raw row:  [270.475, 77, ..., "clear", "sky is clear", ...]
+                #             (mixed numbers + text)
+                #                          | transform
+                #                          v
+                # numeric vector: [ 0.31, -0.84, ...,  0, 1, 0, ...,  0, 1, ...]
+                #   - first 55 values = the scaled numeric columns
+                #   - remaining values = one-hot 0/1 columns for the 10 text
+                #     columns (a few hundred columns total)
+                # With encode_categoricals=False the text is dropped and only the
+                # 55 scaled numeric columns remain.
     """
     numeric, categorical = split_columns(X)                   # find the two column groups
     transformers = [("num", StandardScaler(), numeric)]       # always scale the numeric columns

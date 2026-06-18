@@ -46,6 +46,13 @@ def build_model(X, n_neighbors=5, weights="distance", encode_categoricals=True):
     Postcondition: returns an unfitted Pipeline; calling .fit(X, y) trains it.
     ML context: the Pipeline is the standard way to prevent data leakage — the
     scaler/encoder are fitted only on training folds, never on test data.
+
+    Example (X = the 65 feature columns from powerpredict.csv):
+        Input:  X -> DataFrame, shape (39997, 65); n_neighbors=5, weights="distance"
+        Output: an *unfitted* Pipeline([("pre", ...), ("knn", ...)]).
+                # repr: Pipeline(steps=[('pre', ColumnTransformer(...)),
+                #                       ('knn', KNeighborsRegressor(...))])
+                # .predict() raises NotFittedError until you call .fit(X, y).
     """
     pre = build_preprocessor(X, encode_categoricals=encode_categoricals)  # step 1: scale + encode
     knn = KNeighborsRegressor(n_neighbors=n_neighbors, weights=weights)   # step 2: the k-NN regressor
@@ -60,6 +67,13 @@ def train(X, y, n_neighbors=5, weights="distance", encode_categoricals=True):
     Postcondition: returns a fitted Pipeline ready for .predict().
     ML context: the "model fitting" step. For k-NN, fitting just memorises the
     (preprocessed) training data — there are no weights to optimise.
+
+    Example (X, y from powerpredict.csv via load_data()):
+        Input:  X -> DataFrame (39997, 65); y -> Series (39997,) of power values
+        Output: model = train(X, y)  # a *fitted* Pipeline
+                # model.predict(X.iloc[:1]) -> array([25380.])
+                #   (one predicted power value for the first row, close to the
+                #    true y.iloc[0] == 25385.0)
     """
     model = build_model(X, n_neighbors, weights, encode_categoricals)  # assemble the pipeline
     model.fit(X, y)                                                    # learn from the data
@@ -78,6 +92,15 @@ def tune(X, y, encode_categoricals=True, cv=5):
     estimates how well each setting generalises to UNSEEN data (it splits the data
     into `cv` folds, trains on cv-1 and tests on the held-out fold, rotating). We
     score with MAE because that is the official competition metric.
+
+    Example (X, y from powerpredict.csv via load_data()):
+        Input:  X -> DataFrame (39997, 65); y -> Series (39997,)
+        Output: best, search = tune(X, y)
+                # prints, e.g.:
+                #   Best settings: {'knn__n_neighbors': 25, 'knn__weights': 'distance'}
+                #   Best CV MAE: 1234.56
+                # best   -> the winning Pipeline, refit on all 39997 rows
+                # search -> the full GridSearchCV object (scores for every combo)
     """
     model = build_model(X, encode_categoricals=encode_categoricals)  # base pipeline to tune
     grid = {                                          # the hyperparameter search space:
@@ -105,6 +128,12 @@ def save(model, path=MODEL_PATH):
     ML context: model persistence — we train once and reuse the model at inference
     time (in the test notebook) without retraining. compress=3 keeps it small,
     which matters because of the 50 MB submission limit.
+
+    Example:
+        Input:  model -> a fitted Pipeline (e.g. from tune() on powerpredict.csv);
+                path  -> defaults to <repo>/models/knn_model.joblib
+        Output: None (returns nothing). Side effect: a compressed file appears on
+                disk, e.g. models/knn_model.joblib (~a few MB).
     """
     os.makedirs(os.path.dirname(path), exist_ok=True)  # create the models/ folder if missing
     joblib.dump(model, path, compress=3)               # serialise the pipeline (compressed)
@@ -118,6 +147,12 @@ def load(path=MODEL_PATH):
     Postcondition: returns a ready-to-use fitted Pipeline.
     ML context: the *inference* side of persistence — used by the test notebook to
     get predictions without retraining.
+
+    Example:
+        Input:  path -> "models/knn_model.joblib" (a file written by save())
+        Output: model = load(path)  # a ready-to-use fitted Pipeline
+                # feed it the raw weather table straight from powerpredict.csv:
+                # model.predict(X) -> array([25380., 24990., ...])  (one value/row)
     """
     return joblib.load(path)  # read the model back into memory
 
@@ -125,6 +160,12 @@ def load(path=MODEL_PATH):
 if __name__ == "__main__":
     # This block runs only when the file is executed directly (python model.py),
     # not when it is imported. It is the end-to-end training entry point.
+    #
+    # Example console output for powerpredict.csv (39997 rows x 66 columns):
+    #   Data loaded: X=(39997, 65), y=(39997,)
+    #   Best settings: {'knn__n_neighbors': 25, 'knn__weights': 'distance'}
+    #   Best CV MAE: 1234.56
+    #   Model saved: .../models/knn_model.joblib (3.2 MB)
     X, y = load_data()                                  # load features + target
     print(f"Data loaded: X={X.shape}, y={y.shape}")     # sanity-check the data dimensions
 
