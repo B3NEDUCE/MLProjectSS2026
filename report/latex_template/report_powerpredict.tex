@@ -1,0 +1,275 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Introduction to Machine Learning (SS 2026) -- Programming Project
+% Powerpredict: predicting daily power consumption from weather data.
+%
+% This is a SHARED report. Author 1 (k-NN, Method 1) content is filled in below.
+% Author 2 should add the Ridge-Regression (Method 2) parts where marked
+% "%% >>> RIDGE (Author 2)". Keep the whole report to 2 pages (excl. references).
+%
+% Items still to fill in are marked \TODO{...} (red). See the accompanying chat
+% message / figure snippet for how to obtain each number.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[a4, 10 pt, conference]{ieeeconf}  % Comment this line out if you need a4paper
+
+%\documentclass[a4paper, 10pt, conference]{ieeeconf}      % Use this line for a4 paper
+
+\IEEEoverridecommandlockouts                              % This command is only needed if
+                                                          % you want to use the \thanks command
+
+\overrideIEEEmargins                                      % Needed to meet printer requirements.
+
+\usepackage{multicol}
+\usepackage{tcolorbox}
+\usepackage{cuted,tcolorbox,lipsum}
+\usepackage{xcolor}
+\usepackage{graphicx}   % for \includegraphics (figures)
+\usepackage{booktabs}   % nicer tables (\toprule, \midrule, \bottomrule)
+
+% Helper for open items; delete all \TODO{...} before submitting.
+\newcommand{\TODO}[1]{\textcolor{red}{[TODO: #1]}}
+
+\title{\LARGE \bf
+Introduction to Machine Learning (SS 2026)\\ Programming Project
+\vspace{-3em}
+}
+
+
+\begin{document}
+
+
+\maketitle
+\vspace{-3em}
+\thispagestyle{empty}
+\pagestyle{empty}
+
+\begin{strip}
+\begin{tcolorbox}[
+size=tight,
+colback=white,
+boxrule=0.2mm,
+left=3mm,right=3mm, top=3mm, bottom=1mm
+]
+{\begin{multicols}{2}% replace 3 with 2 for 2 authors.
+
+\textbf{Author 1}       \\
+Last name: \TODO{last name}   \\
+First name: \TODO{first name} \\
+Matrikel Nr.: \TODO{Matrikel Nr.} \\
+
+\columnbreak
+
+\textbf{Author 2}       \\
+Last name: Beneduce             \\
+First name: Paul             \\
+Matrikel Nr.: 12309055               \\
+
+\end{multicols}}
+\end{tcolorbox}
+\end{strip}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Introduction}
+\label{sec:intro}
+
+We address a supervised \emph{regression} task: predicting the daily total
+\texttt{power\_consumption} of a region from weather observations. Accurately
+anticipating demand from weather is directly relevant for energy suppliers, who
+must match generation to load.
+
+The dataset (\texttt{powerpredict}) contains $39{,}997$ instances and $65$
+input features. Each feature describes the weather in one of five fictional cities
+(Bedrock, Gotham City, New New York, Paperopoli, Springfield). Per city there
+are $11$ numeric measurements (temperature and its daily low/high, pressure,
+humidity, wind speed and direction, short-/long-term rain, snow, cloud cover)
+and $2$ textual weather descriptors (\texttt{weather\_main},
+\texttt{weather\_description}), giving $55$ numeric and $10$ categorical columns
+in total. The target is a single continuous value. The numeric features contain
+no missing values, so no imputation was required, and they live on very
+different scales (e.g. pressure vs.\ rainfall), which motivates the scaling step
+described below. The target is \TODO{describe target distribution from
+eda.ipynb: e.g. right-skewed, range and mean $\approx$ value}. We evaluate all
+models with the \emph{Mean Absolute Error} (MAE), the official competition
+metric (lower is better).
+
+\section{Implementation / ML Process}
+\label{sec:methods}
+
+\subsection*{Data preprocessing}
+Both methods share one preprocessing stage, implemented as a scikit-learn
+\texttt{ColumnTransformer} inside a \texttt{Pipeline}. Numeric columns are
+standardised with \texttt{StandardScaler} (zero mean, unit variance). This is
+essential for a distance-based method such as k-NN: without it, large-range
+features (e.g.\ pressure) would dominate the neighbour search and drown out
+small-range ones (e.g.\ rainfall). The textual weather descriptors are turned
+into indicator columns with \texttt{OneHotEncoder}
+(\texttt{handle\_unknown="ignore"}, so unseen weather categories in the hidden
+test set do not cause errors). We treated the use of these categorical columns
+as a design choice and compared both variants (Section~\ref{sec:results}).
+Wrapping preprocessing and model in a single pipeline guarantees that the scaler
+and encoder are fitted only on the training folds, preventing data leakage
+during cross-validation, and lets the evaluation notebook feed in the raw table
+directly.
+
+\subsection*{Method 1: k-Nearest Neighbors regression}
+Method~1 is a k-Nearest-Neighbors regressor. It is an instance-based,
+non-parametric method: it stores the (scaled) training data and predicts a new
+point by averaging the targets of its $k$ closest neighbours under the Euclidean
+(Minkowski, $p=2$) distance. We use distance weighting, so closer neighbours
+contribute more strongly to the prediction than distant ones.
+
+k-NN is a natural fit here: the weather-to-power relationship is likely
+non-linear and locally smooth (similar weather days yield similar consumption),
+which is exactly the structure k-NN exploits without assuming a global
+functional form. It also serves as a strong, simple contrast to the linear
+Method~2. As a non-parametric estimator it is closely related to the
+non-parametric density estimation covered in the VO~\cite{vo-nonparam}; k-NN
+regression replaces the density estimate with a local average of the target.
+
+\subsection*{Hyperparameters}
+We selected hyperparameters with an exhaustive grid search using
+cross-validation, scored by (negative) MAE, so the choice reflects performance
+on held-out folds rather than the training data. The search grid was the number
+of neighbours $k \in \{3, 5, 11, 25, 51\}$ and the weighting scheme
+(\emph{uniform} or \emph{distance}). The best configuration was
+$k = 51$ with distance weighting. The final submitted model uses the numeric
+features only (categorical encoding disabled): dropping the high-cardinality
+one-hot columns kept memory within the JupyterHub limit and did not meaningfully
+hurt accuracy (Section~\ref{sec:results}).
+
+%% >>> RIDGE (Author 2): add a subsection here describing Ridge regression
+%% (regularised linear regression), why it suits the task, and how you chose
+%% the regularisation strength alpha via cross-validation.
+
+\section{Results}
+\label{sec:results}
+
+Table~\ref{tab:cv} reports the cross-validated MAE of the k-NN model across the
+hyperparameter grid, and Fig.~\ref{fig:knn} visualises how the validation MAE
+changes with $k$. Larger $k$ with distance weighting gave the lowest error, i.e.
+$k=51$ was selected. Table~\ref{tab:final} summarises the final performance
+against the dummy baseline (a regressor that always predicts the training-set
+mean).
+
+\begin{table}[h]
+\centering
+\caption{Cross-validated MAE of the k-NN model for each hyperparameter
+configuration (lower is better).}
+\label{tab:cv}
+\begin{tabular}{ccc}
+\toprule
+$k$ (neighbours) & weights & CV MAE \\
+\midrule
+3   & uniform  & \TODO{} \\
+3   & distance & \TODO{} \\
+5   & uniform  & \TODO{} \\
+5   & distance & \TODO{} \\
+11  & uniform  & \TODO{} \\
+11  & distance & \TODO{} \\
+25  & uniform  & \TODO{} \\
+25  & distance & \TODO{} \\
+51  & uniform  & \TODO{} \\
+\textbf{51} & \textbf{distance} & \textbf{3509.56} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+% Generate figures/knn_val_mae_vs_k.png with the snippet provided, then uncomment:
+% \includegraphics[width=0.9\linewidth]{figures/knn_val_mae_vs_k.png}
+\TODO{insert figures/knn\_val\_mae\_vs\_k.png}
+\caption{Validation MAE of the k-NN regressor as a function of the number of
+neighbours $k$, for uniform and distance weighting.}
+\label{fig:knn}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\caption{Final MAE on the training, validation and (hidden) test sets. Lower is
+better.}
+\label{tab:final}
+\begin{tabular}{lccc}
+\toprule
+Model & Train MAE & Valid.\ MAE & Test MAE \\
+\midrule
+Dummy (mean)      & \TODO{} & \TODO{} & \TODO{} \\
+k-NN (Method 1)   & 15.69   & 3509.56 & 2438.15 \\
+%% >>> RIDGE (Author 2): add Ridge row here.
+Ridge (Method 2)  & \TODO{} & \TODO{} & \TODO{} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Discussion}
+\label{sec:discuss}
+
+The k-NN model clearly beats the dummy baseline on unseen data
+(test MAE $2438$ vs.\ dummy \TODO{value}), confirming that the weather features
+carry real predictive signal. The very low \emph{training} MAE ($15.69$) is
+expected and not a sign of quality: with distance weighting, a query that
+coincides with a stored training point receives essentially that point's own
+target (weight $\to \infty$ at distance $0$), so the model reproduces the
+training data almost exactly. The gap to the validation/test MAE ($\approx 2400$--$3500$)
+is the true generalisation error and the number that matters.
+
+Interestingly, the test MAE ($2438$) is lower than the cross-validation estimate
+($3509$). This is plausible because each CV fold trains on only two thirds of
+the data, whereas the final model is refit on the full training set, and because
+the hidden test set may be slightly easier; in any case it indicates the model
+is not overfitting to the public data.
+
+Two things we tried but dropped: (i) one-hot encoding the weather-text columns
+inflated the feature space and, together with the memory footprint of k-NN,
+exhausted the JupyterHub RAM (the training process was killed); the gain in
+accuracy was negligible \TODO{cite the with/without-encoding numbers from
+training.ipynb, cell~4}, so we kept the leaner numeric-only model. (ii) Running
+the grid search in parallel (\texttt{n\_jobs=-1}) replicated the full dataset
+across worker processes and triggered the same out-of-memory failure, so the
+search is run sequentially.
+
+The best $k$ ($51$) sat at the upper edge of our grid, which suggests even larger
+neighbourhoods might reduce error further; extending the grid (e.g.\ $k \in
+\{75, 101\}$) is the obvious next step. Beyond that, dimensionality reduction
+such as PCA~\cite{vo-pca} could counter the curse of dimensionality that hurts
+distance-based methods, and feature selection or an alternative distance metric
+could sharpen the neighbour search.
+
+\section{Conclusion}
+\label{sec:con}
+
+Our final k-NN regressor achieves a test-set MAE of $\mathbf{2438.15}$,
+substantially better than the dummy baseline of \TODO{value}. We did not tune
+against the test set; hyperparameters were fixed purely on cross-validated
+training performance.
+
+The main takeaway is that a simple, non-parametric method with careful
+preprocessing goes a long way on this problem: standardising the weather
+features and letting k-NN average over locally similar days already yields a
+large improvement over the mean predictor. The exercise also highlighted the
+practical trade-offs of instance-based learning: k-NN's memory cost forced us to
+drop the categorical features and run the search sequentially, and its tendency
+to memorise the training data makes the training error misleading. A regularised
+linear model (Method~2) offers a complementary, low-memory perspective, and
+comparing the two clarifies when local averaging beats a global linear fit for
+weather-driven demand prediction.
+
+%% >>> RIDGE (Author 2): extend the conclusion with Method 2's test performance
+%% and a one-line comparison of the two methods.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{thebibliography}{9}
+
+\bibitem{vo-nonparam}
+Introduction to Machine Learning (SS 2026), Lecture~10:
+\emph{Nonparametric Density Estimation}. University of Innsbruck.
+
+\bibitem{vo-pca}
+Introduction to Machine Learning (SS 2026), Lecture~07:
+\emph{Dimensionality Reduction by PCA/SVD}. University of Innsbruck.
+
+\end{thebibliography}
+
+\end{document}
