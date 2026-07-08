@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.3.14)  7 JUL 2026 12:16
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.3.14)  8 JUL 2026 12:47
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -643,21 +643,21 @@ LaTeX Font Info:    External font `cmex10' loaded for size
 (Font)              <7> on input line 81.
 LaTeX Font Info:    External font `cmex10' loaded for size
 (Font)              <5> on input line 81.
-
-Underfull \hbox (badness 2478) in paragraph at lines 100--114
-\OT1/ptm/m/n/10 turned into in-di-ca-tor columns with \OT1/pcr/m/n/10 OneHotEnc
-oder
- []
-
-LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <8> on input line 160.
-LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <6> on input line 160.
-[1{c:/texlive/2026/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{c:/texlive/202
-6/texmf-dist/fonts/enc/dvips/base/8r.enc}
+ [1{c:/texlive/2026/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{c:/texlive/20
+26/texmf-dist/fonts/enc/dvips/base/8r.enc}
 
 
 ]
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <8> on input line 164.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <6> on input line 164.
+<knn_val_mae_vs_k.png, id=16, 396.5214pt x 262.581pt>
+File: knn_val_mae_vs_k.png Graphic file (type png)
+<use knn_val_mae_vs_k.png>
+Package pdftex.def Info: knn_val_mae_vs_k.png  used on input line 184.
+(pdftex.def)             Requested size: 221.14479pt x 146.44334pt.
+
 
 ** Conference Paper **
 Before submitting the final camera ready copy, remember to:
@@ -669,17 +669,17 @@ Before submitting the final camera ready copy, remember to:
  uses only Type 1 fonts and that every step in the generation
  process uses the US letter (8.5in X 11in) paper size.
 
-[2] (./report_powerpredict.aux)
+[2 <./knn_val_mae_vs_k.png>] (./report_powerpredict.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-01-19>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 15588 strings out of 467525
- 334026 string characters out of 5423209
- 813534 words of memory out of 5000000
- 44262 multiletter control sequences out of 15000+600000
+ 15595 strings out of 467525
+ 334214 string characters out of 5423209
+ 814534 words of memory out of 5000000
+ 44269 multiletter control sequences out of 15000+600000
  662175 words of font info for 101 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  116i,9n,121p,469b,573s stack positions out of 10000i,1000n,20000p,200000b,200000s
@@ -691,10 +691,10 @@ pe1/public/amsfonts/cm/cmsy10.pfb><c:/texlive/2026/texmf-dist/fonts/type1/urw/c
 ourier/ucrr8a.pfb><c:/texlive/2026/texmf-dist/fonts/type1/urw/times/utmb8a.pfb>
 <c:/texlive/2026/texmf-dist/fonts/type1/urw/times/utmr8a.pfb><c:/texlive/2026/t
 exmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on report_powerpredict.pdf (2 pages, 111989 bytes).
+Output written on report_powerpredict.pdf (2 pages, 138081 bytes).
 PDF statistics:
- 60 PDF objects out of 1000 (max. 8388607)
- 37 compressed objects within 1 object stream
+ 63 PDF objects out of 1000 (max. 8388607)
+ 38 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
- 13 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 18 words of extra memory for PDF output out of 10000 (max. 10000000)
 

@@ -73,70 +73,74 @@ Matrikel Nr.: 12309055               \\
 \section{Introduction}
 \label{sec:intro}
 
-We address a supervised \emph{regression} task: predicting the daily total
-\texttt{power\_consumption} of a region from weather observations. Accurately
-anticipating demand from weather is directly relevant for energy suppliers, who
-must match generation to load.
+This is a supervised \emph{regression} task: we predict the daily total
+\texttt{power\_consumption} of a region from weather data. This is useful for
+energy suppliers, since they need to match how much power they generate with
+how much is actually used.
 
-The dataset (\texttt{powerpredict}) contains $39{,}997$ instances and $65$
-input features. Each feature describes the weather in one of five fictional cities
-(Bedrock, Gotham City, New New York, Paperopoli, Springfield). Per city there
-are $11$ numeric measurements (temperature and its daily low/high, pressure,
-humidity, wind speed and direction, short-/long-term rain, snow, cloud cover)
-and $2$ textual weather descriptors (\texttt{weather\_main},
-\texttt{weather\_description}), giving $55$ numeric and $10$ categorical columns
-in total. The target is a single continuous value. The numeric features contain
-no missing values, so no imputation was required, and they live on very
-different scales (e.g. pressure vs.\ rainfall), which motivates the scaling step
-described below. The target is \TODO{describe target distribution from
-eda.ipynb: e.g. right-skewed, range and mean $\approx$ value}. We evaluate all
-models with the \emph{Mean Absolute Error} (MAE), the official competition
-metric (lower is better).
+The dataset (\texttt{powerpredict}) has $39{,}997$ rows and $65$ input
+features. Each feature describes the weather in one of five fictional cities
+(Bedrock, Gotham City, New New York, Paperopoli, Springfield). For each city
+there are $11$ numeric measurements (temperature and its daily low/high,
+pressure, humidity, wind speed and direction, short-/long-term rain, snow,
+cloud cover) and $2$ text columns (\texttt{weather\_main},
+\texttt{weather\_description}), which gives $55$ numeric and $10$ categorical
+columns in total. The target is one continuous value. There are no missing
+values in the numeric features, so we did not need to fill anything in, but
+the features have very different scales (e.g.\ pressure vs.\ rainfall), which
+is why we scale them below. The target ranges from $18{,}041$ to $41{,}015$,
+with a mean of $28{,}555$ and a standard deviation of $4{,}735$. Its
+distribution is roughly symmetric with one main peak, but there is also a
+small, narrow spike around $23{,}000$. We evaluate all models with the
+\emph{Mean Absolute Error} (MAE), since this is the official metric of the
+competition (lower is better).
 
 \section{Implementation / ML Process}
 \label{sec:methods}
 
 \subsection*{Data preprocessing}
-Both methods share one preprocessing stage, implemented as a scikit-learn
+Both methods use the same preprocessing step, built with a scikit-learn
 \texttt{ColumnTransformer} inside a \texttt{Pipeline}. Numeric columns are
-standardised with \texttt{StandardScaler} (zero mean, unit variance). This is
-essential for a distance-based method such as k-NN: without it, large-range
-features (e.g.\ pressure) would dominate the neighbour search and drown out
-small-range ones (e.g.\ rainfall). The textual weather descriptors are turned
-into indicator columns with \texttt{OneHotEncoder}
-(\texttt{handle\_unknown="ignore"}, so unseen weather categories in the hidden
-test set do not cause errors). We treated the use of these categorical columns
-as a design choice and compared both variants (Section~\ref{sec:results}).
-Wrapping preprocessing and model in a single pipeline guarantees that the scaler
-and encoder are fitted only on the training folds, preventing data leakage
-during cross-validation, and lets the evaluation notebook feed in the raw table
-directly.
+scaled with \texttt{StandardScaler} (zero mean, unit variance). This step
+matters a lot for a distance-based method like k-NN: without it, a feature
+with a large range (e.g.\ pressure) would dominate the distance calculation
+and features with a small range (e.g.\ rainfall) would barely matter. The
+text weather columns are turned into 0/1 columns with \texttt{OneHotEncoder}
+(\texttt{handle\_unknown="ignore"}, so weather categories that only show up in
+the hidden test set do not cause an error). We decided to test both with and
+without these categorical columns, and compare the two options in
+Section~\ref{sec:results}. Putting the scaler, encoder and model together in
+one pipeline makes sure the scaler and encoder are only fitted on the
+training folds, so there is no data leakage during cross-validation, and it
+also lets the evaluation notebook use the raw table directly.
 
 \subsection*{Method 1: k-Nearest Neighbors regression}
-Method~1 is a k-Nearest-Neighbors regressor. It is an instance-based,
-non-parametric method: it stores the (scaled) training data and predicts a new
-point by averaging the targets of its $k$ closest neighbours under the Euclidean
-(Minkowski, $p=2$) distance. We use distance weighting, so closer neighbours
-contribute more strongly to the prediction than distant ones.
+Method~1 is a k-Nearest-Neighbors (k-NN) regressor. It is an instance-based
+method that does not learn any parameters: it just stores the (scaled)
+training data and predicts a new point by averaging the targets of its $k$
+closest neighbours, using the Euclidean (Minkowski, $p=2$) distance. We use
+distance weighting, so neighbours that are closer have a bigger influence on
+the prediction than neighbours that are far away.
 
-k-NN is a natural fit here: the weather-to-power relationship is likely
-non-linear and locally smooth (similar weather days yield similar consumption),
-which is exactly the structure k-NN exploits without assuming a global
-functional form. It also serves as a strong, simple contrast to the linear
-Method~2. As a non-parametric estimator it is closely related to the
-non-parametric density estimation covered in the VO~\cite{vo-nonparam}; k-NN
-regression replaces the density estimate with a local average of the target.
+k-NN fits this problem well because the relationship between weather and
+power consumption is probably non-linear but locally smooth: days with
+similar weather should have similar power consumption. This is exactly what
+k-NN uses, without assuming any fixed global formula. It is also a simple but
+strong contrast to the linear Method~2. Since it does not learn parameters,
+k-NN is closely related to the non-parametric density estimation from the
+VO~\cite{vo-nonparam}; k-NN regression basically replaces the density
+estimate with a local average of the target values.
 
 \subsection*{Hyperparameters}
-We selected hyperparameters with an exhaustive grid search using
-cross-validation, scored by (negative) MAE, so the choice reflects performance
-on held-out folds rather than the training data. The search grid was the number
-of neighbours $k \in \{3, 5, 11, 25, 51\}$ and the weighting scheme
-(\emph{uniform} or \emph{distance}). The best configuration was
-$k = 51$ with distance weighting. The final submitted model uses the numeric
-features only (categorical encoding disabled): dropping the high-cardinality
-one-hot columns kept memory within the JupyterHub limit and did not meaningfully
-hurt accuracy (Section~\ref{sec:results}).
+We chose the hyperparameters with a full grid search using cross-validation,
+scored by (negative) MAE, so the choice is based on held-out folds and not on
+the training data itself. The grid was the number of neighbours $k \in \{3,
+5, 11, 25, 51\}$ and the weighting method (\emph{uniform} or
+\emph{distance}). The best combination was $k = 3$ with distance weighting
+(CV MAE $1799.14$). The final submitted model only uses the numeric features
+(categorical encoding turned off): dropping the one-hot columns kept the
+memory usage inside the JupyterHub limit, and it did not really hurt
+accuracy (see Section~\ref{sec:results}).
 
 %% >>> RIDGE (Author 2): add a subsection here describing Ridge regression
 %% (regularised linear regression), why it suits the task, and how you chose
@@ -145,12 +149,12 @@ hurt accuracy (Section~\ref{sec:results}).
 \section{Results}
 \label{sec:results}
 
-Table~\ref{tab:cv} reports the cross-validated MAE of the k-NN model across the
-hyperparameter grid, and Fig.~\ref{fig:knn} visualises how the validation MAE
-changes with $k$. Larger $k$ with distance weighting gave the lowest error, i.e.
-$k=51$ was selected. Table~\ref{tab:final} summarises the final performance
-against the dummy baseline (a regressor that always predicts the training-set
-mean).
+Table~\ref{tab:cv} shows the cross-validated MAE of the k-NN model for every
+hyperparameter combination, and Fig.~\ref{fig:knn} shows how the validation
+MAE changes with $k$. A small $k$ with distance weighting gave the lowest
+error, so we selected $k=3$. Table~\ref{tab:final} shows the final
+performance compared to the dummy baseline (a model that always predicts the
+mean of the training set).
 
 \begin{table}[h]
 \centering
@@ -161,25 +165,23 @@ configuration (lower is better).}
 \toprule
 $k$ (neighbours) & weights & CV MAE \\
 \midrule
-3   & uniform  & \TODO{} \\
-3   & distance & \TODO{} \\
-5   & uniform  & \TODO{} \\
-5   & distance & \TODO{} \\
-11  & uniform  & \TODO{} \\
-11  & distance & \TODO{} \\
-25  & uniform  & \TODO{} \\
-25  & distance & \TODO{} \\
-51  & uniform  & \TODO{} \\
-\textbf{51} & \textbf{distance} & \textbf{3509.56} \\
+3   & uniform  & 2021.10 \\
+\textbf{3}   & \textbf{distance} & \textbf{1799.14} \\
+5   & uniform  & 2174.64 \\
+5   & distance & 1838.56 \\
+11  & uniform  & 2414.77 \\
+11  & distance & 1916.81 \\
+25  & uniform  & 2655.23 \\
+25  & distance & 2012.32 \\
+51  & uniform  & 2816.70 \\
+51  & distance & 2075.85 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \begin{figure}[h]
 \centering
-% Generate figures/knn_val_mae_vs_k.png with the snippet provided, then uncomment:
-% \includegraphics[width=0.9\linewidth]{figures/knn_val_mae_vs_k.png}
-\TODO{insert figures/knn\_val\_mae\_vs\_k.png}
+\includegraphics[width=0.9\linewidth]{knn_val_mae_vs_k.png}
 \caption{Validation MAE of the k-NN regressor as a function of the number of
 neighbours $k$, for uniform and distance weighting.}
 \label{fig:knn}
@@ -194,8 +196,8 @@ better.}
 \toprule
 Model & Train MAE & Valid.\ MAE & Test MAE \\
 \midrule
-Dummy (mean)      & \TODO{} & \TODO{} & \TODO{} \\
-k-NN (Method 1)   & 15.69   & 3509.56 & 2438.15 \\
+Dummy (mean)      & 4086.00 & 4080.71 & 3932.85 \\
+k-NN (Method 1)   & 17.97   & 1799.14 & 1835.41 \\
 %% >>> RIDGE (Author 2): add Ridge row here.
 Ridge (Method 2)  & \TODO{} & \TODO{} & \TODO{} \\
 \bottomrule
@@ -205,55 +207,58 @@ Ridge (Method 2)  & \TODO{} & \TODO{} & \TODO{} \\
 \section{Discussion}
 \label{sec:discuss}
 
-The k-NN model clearly beats the dummy baseline on unseen data
-(test MAE $2438$ vs.\ dummy \TODO{value}), confirming that the weather features
-carry real predictive signal. The very low \emph{training} MAE ($15.69$) is
-expected and not a sign of quality: with distance weighting, a query that
-coincides with a stored training point receives essentially that point's own
-target (weight $\to \infty$ at distance $0$), so the model reproduces the
-training data almost exactly. The gap to the validation/test MAE ($\approx 2400$--$3500$)
-is the true generalisation error and the number that matters.
+The k-NN model clearly beats the dummy baseline on unseen data (test MAE
+$1835.41$ vs.\ dummy $3932.85$), which shows that the weather features really
+do carry useful information. The very low \emph{training} MAE ($17.97$) is
+expected and does not mean the model is good: with distance weighting, if a
+query point is the same as a training point, its weight goes to infinity, so
+the model almost perfectly reproduces the training data. The gap to the
+validation/test MAE is the real generalisation error, and this is the number
+that actually matters.
 
-Interestingly, the test MAE ($2438$) is lower than the cross-validation estimate
-($3509$). This is plausible because each CV fold trains on only two thirds of
-the data, whereas the final model is refit on the full training set, and because
-the hidden test set may be slightly easier; in any case it indicates the model
-is not overfitting to the public data.
+The test MAE ($1835.41$) is a bit higher than the cross-validation estimate
+($1799.14$), which is what we would expect: the final model is trained again
+on the full training set, so this small gap is just normal generalisation
+error, not a mistake in how we evaluated it. Since the gap is small, the
+model does not seem to be overfitting on the public data.
 
-Two things we tried but dropped: (i) one-hot encoding the weather-text columns
-inflated the feature space and, together with the memory footprint of k-NN,
-exhausted the JupyterHub RAM (the training process was killed); the gain in
-accuracy was negligible \TODO{cite the with/without-encoding numbers from
-training.ipynb, cell~4}, so we kept the leaner numeric-only model. (ii) Running
-the grid search in parallel (\texttt{n\_jobs=-1}) replicated the full dataset
-across worker processes and triggered the same out-of-memory failure, so the
-search is run sequentially.
+We tried two things that did not work out: (i) One-hot encoding the
+weather-text columns made the feature space much bigger, and together with
+how much memory k-NN needs, this used up all the RAM on JupyterHub (the
+training process got killed). On a smaller subsample of $n{=}8000$ rows (used
+because the full run crashed), the accuracy gain was basically zero, and even
+slightly worse (val.\ MAE $2532.75$ with encoding vs.\ $2388.89$ without), so
+we kept the simpler numeric-only model. (ii) Running the grid search in
+parallel (\texttt{n\_jobs=-1}) copied the whole dataset into every worker
+process, which caused the same out-of-memory crash, so we ran the search
+step by step instead.
 
-The best $k$ ($51$) sat at the upper edge of our grid, which suggests even larger
-neighbourhoods might reduce error further; extending the grid (e.g.\ $k \in
-\{75, 101\}$) is the obvious next step. Beyond that, dimensionality reduction
-such as PCA~\cite{vo-pca} could counter the curse of dimensionality that hurts
-distance-based methods, and feature selection or an alternative distance metric
-could sharpen the neighbour search.
+The best $k$ ($3$) was at the lower end of our grid, which suggests that an
+even smaller neighbourhood could reduce the error even more; trying smaller
+values (e.g.\ $k \in \{1, 2\}$) would be the obvious next step. Beyond that,
+dimensionality reduction such as PCA~\cite{vo-pca} could help with the curse
+of dimensionality, which is a problem for distance-based methods, and feature
+selection or a different distance metric could also improve the neighbour
+search.
 
 \section{Conclusion}
 \label{sec:con}
 
-Our final k-NN regressor achieves a test-set MAE of $\mathbf{2438.15}$,
-substantially better than the dummy baseline of \TODO{value}. We did not tune
-against the test set; hyperparameters were fixed purely on cross-validated
-training performance.
+Our final k-NN regressor reaches a test-set MAE of $\mathbf{1835.41}$, which
+is much better than the dummy baseline of $3932.85$. We did not tune anything
+on the test set; the hyperparameters were only chosen based on cross-validated
+performance on the training data.
 
 The main takeaway is that a simple, non-parametric method with careful
-preprocessing goes a long way on this problem: standardising the weather
-features and letting k-NN average over locally similar days already yields a
-large improvement over the mean predictor. The exercise also highlighted the
-practical trade-offs of instance-based learning: k-NN's memory cost forced us to
-drop the categorical features and run the search sequentially, and its tendency
-to memorise the training data makes the training error misleading. A regularised
-linear model (Method~2) offers a complementary, low-memory perspective, and
-comparing the two clarifies when local averaging beats a global linear fit for
-weather-driven demand prediction.
+preprocessing already gets you quite far on this problem: scaling the weather
+features and letting k-NN average over similar days gives a big improvement
+over the mean predictor. This project also showed the practical downsides of
+instance-based learning: k-NN's memory cost forced us to drop the categorical
+features and run the grid search step by step, and the fact that it memorises
+the training data makes the training error misleading. A regularised linear
+model (Method~2) gives a different, more memory-friendly perspective, and
+comparing the two shows when local averaging works better than a global
+linear fit for predicting power demand from weather.
 
 %% >>> RIDGE (Author 2): extend the conclusion with Method 2's test performance
 %% and a one-line comparison of the two methods.
