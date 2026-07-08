@@ -5,9 +5,6 @@
 % This is a SHARED report. Author 1 (k-NN, Method 1) content is filled in below.
 % Author 2 should add the Ridge-Regression (Method 2) parts where marked
 % "%% >>> RIDGE (Author 2)". Keep the whole report to 2 pages (excl. references).
-%
-% Items still to fill in are marked \TODO{...} (red). See the accompanying chat
-% message / figure snippet for how to obtain each number.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \documentclass[a4, 10 pt, conference]{ieeeconf}  % Comment this line out if you need a4paper
@@ -26,8 +23,6 @@
 \usepackage{graphicx}   % for \includegraphics (figures)
 \usepackage{booktabs}   % nicer tables (\toprule, \midrule, \bottomrule)
 
-% Helper for open items; delete all \TODO{...} before submitting.
-\newcommand{\TODO}[1]{\textcolor{red}{[TODO: #1]}}
 
 \title{\LARGE \bf
 Introduction to Machine Learning (SS 2026)\\ Programming Project
@@ -53,9 +48,9 @@ left=3mm,right=3mm, top=3mm, bottom=1mm
 {\begin{multicols}{2}% replace 3 with 2 for 2 authors.
 
 \textbf{Author 1}       \\
-Last name: \TODO{last name}   \\
-First name: \TODO{first name} \\
-Matrikel Nr.: \TODO{Matrikel Nr.} \\
+Last name: Djurdjevic   \\
+First name: Leonardo \\
+Matrikel Nr.: 12412371 \\
 
 \columnbreak
 
@@ -131,7 +126,7 @@ k-NN is closely related to the non-parametric density estimation from the
 VO~\cite{vo-nonparam}; k-NN regression basically replaces the density
 estimate with a local average of the target values.
 
-\subsection*{Hyperparameters}
+\subsection*{Hyperparameters (Method 1)}
 We chose the hyperparameters with a full grid search using cross-validation,
 scored by (negative) MAE, so the choice is based on held-out folds and not on
 the training data itself. The grid was the number of neighbours $k \in \{3,
@@ -142,9 +137,13 @@ the training data itself. The grid was the number of neighbours $k \in \{3,
 memory usage inside the JupyterHub limit, and it did not really hurt
 accuracy (see Section~\ref{sec:results}).
 
-%% >>> RIDGE (Author 2): add a subsection here describing Ridge regression
-%% (regularised linear regression), why it suits the task, and how you chose
-%% the regularisation strength alpha via cross-validation.
+\subsection*{Method 2: Ridge Regression}
+Method~2 employs Ridge Regression, a parametric linear model that minimizes the residual sum of squares while applying an $L_2$ penalty to the model's weights. Unlike k-NN, which memorizes the dataset, Ridge learns a global linear relationship between the weather features and power consumption.
+
+Given the high dimensionality of our dataset (especially after one-hot encoding the categorical weather descriptions, resulting in over 65 features), standard Ordinary Least Squares (OLS) regression is highly susceptible to overfitting and multicollinearity. Ridge Regression directly addresses this by introducing a Gaussian prior on the weights~\cite{vo-linreg}, pulling them toward zero. This regularization ensures that highly correlated weather features between neighboring cities do not disproportionately destabilize the prediction.
+
+\subsection*{Hyperparameters (Method 2)}
+The critical hyperparameter in Ridge Regression is $\alpha$ (or $\lambda$), which controls the strength of the $L_2$ penalty. We optimized this using a Grid Search with 5-fold cross-validation, scored by negative MAE. Drawing inspiration from the course lectures, we evaluated $\alpha$ across a logarithmic scale: $\alpha \in \{e^{-15}, e^{-10}, e^{-5}, e^0, e^5\}$. The search identified $\alpha = e^5 \approx 148.41$ as the optimal regularization strength. To prevent the Linux Out-Of-Memory killer from crashing the JupyterHub environment during the one-hot encoded dataset's cross-validation, we constrained the search to run sequentially (\texttt{n\_jobs=1}).
 
 \section{Results}
 \label{sec:results}
@@ -198,8 +197,7 @@ Model & Train MAE & Valid.\ MAE & Test MAE \\
 \midrule
 Dummy (mean)      & 4086.00 & 4080.71 & 3932.85 \\
 k-NN (Method 1)   & 17.97   & 1799.14 & 1835.41 \\
-%% >>> RIDGE (Author 2): add Ridge row here.
-Ridge (Method 2)  & \TODO{} & \TODO{} & \TODO{} \\
+Ridge (Method 2)  & 3129.70 & 7191.66 & 3214.96 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -221,6 +219,8 @@ The test MAE ($1835.41$) is a bit higher than the cross-validation estimate
 on the full training set, so this small gap is just normal generalisation
 error, not a mistake in how we evaluated it. Since the gap is small, the
 model does not seem to be overfitting on the public data.
+
+For Method~2, the Ridge Regression model achieved a Test MAE of $3214.96$. Interestingly, its cross-validation MAE ($7191.66$) was significantly higher than its final Train and Test MAEs. This discrepancy arose from a severe temporal anomaly in one specific training fold (where the MAE spiked over $22{,}000$), which heavily skewed the CV average. When retrained on the full dataset, the Ridge model successfully stabilized, demonstrating that its $L_2$ penalty effectively mitigated overfitting. However, because it enforces a strict linear global rule, it ultimately underperformed compared to the local, non-parametric flexibility of k-NN. Conversely, the Ridge model requires virtually zero memory ($< 0.1$ MB) and evaluates instantly, offering a massive computational advantage over k-NN's dataset-memorization approach.
 
 We tried two things that did not work out: (i) One-hot encoding the
 weather-text columns made the feature space much bigger, and together with
@@ -255,13 +255,9 @@ features and letting k-NN average over similar days gives a big improvement
 over the mean predictor. This project also showed the practical downsides of
 instance-based learning: k-NN's memory cost forced us to drop the categorical
 features and run the grid search step by step, and the fact that it memorises
-the training data makes the training error misleading. A regularised linear
-model (Method~2) gives a different, more memory-friendly perspective, and
-comparing the two shows when local averaging works better than a global
-linear fit for predicting power demand from weather.
+the training data makes the training error misleading. 
 
-%% >>> RIDGE (Author 2): extend the conclusion with Method 2's test performance
-%% and a one-line comparison of the two methods.
+Our Ridge Regression (Method~2) achieved a test-set MAE of $3214.96$, also comfortably beating the baseline while maintaining an exceptionally small memory footprint ($<0.1$ MB). Ultimately, while Ridge provides superior computational efficiency and stability against multicollinearity, the local averaging of k-NN proved more accurate for predicting power demand from weather variations.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -270,6 +266,10 @@ linear fit for predicting power demand from weather.
 \bibitem{vo-nonparam}
 Introduction to Machine Learning (SS 2026), Lecture~10:
 \emph{Nonparametric Density Estimation}. University of Innsbruck.
+
+\bibitem{vo-linreg}
+Introduction to Machine Learning (SS 2026), Lecture~03:
+\emph{Linear and Logistic Regression}. University of Innsbruck.
 
 \bibitem{vo-pca}
 Introduction to Machine Learning (SS 2026), Lecture~07:
